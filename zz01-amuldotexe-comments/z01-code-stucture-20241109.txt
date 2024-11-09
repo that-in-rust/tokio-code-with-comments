@@ -246,14 +246,14 @@ The `.await` tells the task to **pause** here until `deliver_letter()` completes
 
  **Visualization:**
  ```
- [Program] 
+[Program] 
     |
     |-- tokio::spawn(async {
     |        deliver_letter().await
     |    }) 
     |
     |-- Program continues executing other tasks
- ```
+```
 
 🔍 **How It Really Works:**
 - **tokio::spawn:** Launches an asynchronous task on Tokio's runtime.
@@ -272,6 +272,13 @@ The `.await` tells the task to **pause** here until `deliver_letter()` completes
 The main program initiates `deliver_letter()` and **continues running** other code.
 Tokio's runtime handles the asynchronous task, allowing efficient multitasking.
 
+**Q. Does this mean a single spawn will only spawn one extra task apart from the main program? How does the OS see this? Also, is this parallel processing then—how is it different from what Rayon does?**
+
+**A.** Great questions! 
+
+- **Single Spawn and OS Perspective:** When you use `tokio::spawn`, you're creating a lightweight asynchronous task, not a separate OS thread. Tokio manages these tasks within its runtime, scheduling them across a pool of threads it controls. From the OS's viewpoint, it sees only the threads managed by Tokio's runtime, not each individual task you spawn.
+
+- **Parallel Processing vs. Rayon:** Tokio is designed for asynchronous I/O-bound tasks, allowing many tasks to make progress without waiting for each other, using non-blocking operations. Rayon, on the other hand, is tailored for CPU-bound, data-parallel tasks, distributing work across multiple threads to leverage multi-core processors. While both achieve concurrency, Tokio excels in handling numerous asynchronous operations efficiently, whereas Rayon is ideal for parallelizing computations.
 
 
 2. Channels are like Enchanted Coins (remember Dumbledore's Army?):
