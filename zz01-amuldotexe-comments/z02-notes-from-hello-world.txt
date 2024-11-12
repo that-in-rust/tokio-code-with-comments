@@ -186,10 +186,65 @@ Runtime (dyn Trait):
 - Can handle types not known at compile time
 
 ❌ Cons:
-- Small runtime overhead from vtable lookups
+- Runtime overhead from vtable lookups:
+  ┌─────────────┐         ┌─────────────┐
+  │ Your Code   │   1️⃣    │   vtable    │
+  │ calls       │ ───────>│ (lookup     │
+  │ method()    │         │  table)     │
+  └─────────────┘         └──────┬──────┘
+                                 │
+                                 │ 2️⃣
+                                 ▼
+                         ┌─────────────┐
+                         │ Actual      │
+                         │ Implementation│
+                         └─────────────┘
+
+  Each method call needs two steps:
+  1. Find method address in vtable
+  2. Jump to that address
+  
+  vs generics which directly call the implementation:
+  ┌─────────────┐    
+  │ Your Code   │ ──────> Implementation
+  └─────────────┘    
 - Less optimization potential
 - Heap allocation required for trait objects
 - Can't use associated types or const generics
+
+Vtable Contents:
+
+The vtable is created at compile time and contains:
+1. Pointer to destructor
+2. Size of concrete type
+3. Alignment of concrete type 
+4. Function pointers for ALL trait methods
+
+Example vtable for Display trait:
+┌─────────────────────┐
+│ destructor_fn_ptr   │ 
+├─────────────────────┤
+│ size: usize         │
+├─────────────────────┤
+│ align: usize        │
+├─────────────────────┤
+│ fmt_fn_ptr          │ -> Points to actual fmt() implementation
+└─────────────────────┘
+
+So yes - the vtable has all the same functions as generics would have, determined at compile time. The only difference is generics generate specialized code for each type, while vtables store function pointers to a single implementation.
+
+Key points:
+- Vtable contents are fixed at compile time
+- One vtable per (trait, type) combination
+- Runtime cost is just pointer indirection
+- No runtime function resolution needed
+
+Q: No, there are important differences:
+1. Generics generate specialized code that is fully type-checked and optimized for each concrete type
+2. Vtables only store function pointers - the actual implementations are type-checked but not specialized/optimized for each type
+3. Generics can use static dispatch (direct function calls) while vtables require dynamic dispatch (pointer indirection)
+4. Generics can leverage type information for optimizations that aren't possible with vtables
+
 
 When to Use What:
 
