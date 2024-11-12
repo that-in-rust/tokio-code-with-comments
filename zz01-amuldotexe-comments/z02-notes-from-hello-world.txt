@@ -101,69 +101,120 @@ impl Printable for Circle {
 fn print_shape(shape: &dyn Printable) {
     shape.print();
 }
+```
+Q: What is &dyn?
+A: &dyn is Rust's syntax for trait objects - it means "reference to any type that implements this trait"
+- & indicates it's borrowed (non-owning reference)
+- dyn indicates dynamic dispatch will be used
+- Size is known at runtime (2 pointers: data + vtable)
+- Enables runtime polymorphism
+Q2: Runtime vs Compile-time Polymorphism Across Languages
+┌────────────┬────────────────────┬───────────────────────┐
+│ Language   │ Runtime (Dynamic)  │ Compile-time (Static) │
+├────────────┼────────────────────┼───────────────────────┤
+│ Rust       │ &dyn Trait         │ Generic <T>           │
+│            │ (vtable lookup)    │ (monomorphization)    │
+├────────────┼────────────────────┼───────────────────────┤
+│ Java       │ Interface          │ Generics <T>           │
+│           │ (vtable lookup)   │ (type erasure)        │
+├────────────┼────────────────────┼───────────────────────┤
+│ Go         │ Interface         │ No generics pre-1.18   │
+│           │ (interface table)  │ (type parameters now) │
+├────────────┼────────────────────┼───────────────────────┤
+│ Python     │ Duck typing       │ Type hints (optional) │
+│           │ (method lookup)    │ (runtime checking)    │
+└────────────┴────────────────────┴───────────────────────┘
+ELI15: Think of polymorphism like a universal remote control in context of types. You have two ways to make it work:
+Runtime (Dynamic) is like a learning remote - when you press a button, it figures out what to do 
+by checking a little instruction manual inside (the vtable). It's flexible but slightly slower
+since it has to look up what to do each time.
+Compile-time (Static) is like having separate remotes for each device. The compiler makes a 
+specialized version for each type (in Rust, this is called monomorphization). It's faster because
+there's no lookup needed - it knows exactly what to do. But it makes your program bigger since
+you need separate code for each type.
+Rust lets you choose which approach you want:
+- Use &dyn Trait when you need flexibility and don't mind the small runtime cost
+- Use generics <T> when you want maximum speed and don't mind larger binary size
 
-// Q: What is &dyn?
-// A: &dyn is Rust's syntax for trait objects - it means "reference to any type that implements this trait"
-// - & indicates it's borrowed (non-owning reference)
-// - dyn indicates dynamic dispatch will be used
-// - Size is known at runtime (2 pointers: data + vtable)
-// - Enables runtime polymorphism
-// Q2: Runtime vs Compile-time Polymorphism Across Languages
-// ┌────────────┬────────────────────┬───────────────────────┐
-// │ Language   │ Runtime (Dynamic)  │ Compile-time (Static) │
-// ├────────────┼────────────────────┼───────────────────────┤
-// │ Rust       │ &dyn Trait         │ Generic <T>           │
-// │            │ (vtable lookup)    │ (monomorphization)    │
-// ├────────────┼────────────────────┼───────────────────────┤
-// │ Java       │ Interface          │ Generics <T>           │
-// │           │ (vtable lookup)   │ (type erasure)        │
-// ├────────────┼────────────────────┼───────────────────────┤
-// │ Go         │ Interface         │ No generics pre-1.18   │
-// │           │ (interface table)  │ (type parameters now) │
-// ├────────────┼────────────────────┼───────────────────────┤
-// │ Python     │ Duck typing       │ Type hints (optional) │
-// │           │ (method lookup)    │ (runtime checking)    │
-// └────────────┴────────────────────┴───────────────────────┘
+ELI15: vtable & monomorphization explained with a restaurant analogy:
 
-// ELI15: Think of polymorphism like a universal remote control in context of types. You have two ways to make it work:
+vtable (&dyn Trait):
+Imagine a restaurant with a menu (trait) and different dishes (implementations).
+When a customer (your code) orders "today's special" (trait object):
 
-// Runtime (Dynamic) is like a learning remote - when you press a button, it figures out what to do 
-// by checking a little instruction manual inside (the vtable). It's flexible but slightly slower
-// since it has to look up what to do each time.
+Menu (Trait)           vtable                  Implementation
+┌──────────┐     ┌─────────────────┐     ┌─────────────────┐
+│ Order    │ --> │ Pizza::make()   │ --> │ Pizza           │
+│ Make     │     │ Pizza::serve()  │     │ - make()        │
+│ Serve    │     └─────────────────┘     │ - serve()       │
+└──────────┘                             └─────────────────┘
 
-// Compile-time (Static) is like having separate remotes for each device. The compiler makes a 
-// specialized version for each type (in Rust, this is called monomorphization). It's faster because
-// there's no lookup needed - it knows exactly what to do. But it makes your program bigger since
-// you need separate code for each type.
+The waiter (vtable) looks up how to make/serve that specific dish at runtime.
 
-// Rust lets you choose which approach you want:
-// - Use &dyn Trait when you need flexibility and don't mind the small runtime cost
-// - Use generics <T> when you want maximum speed and don't mind larger binary size
+monomorphization (generics <T>):
+Instead of a lookup, the kitchen (compiler) creates separate specialized
+recipes for each dish type at compile time:
+
+Before:                After Monomorphization:
+┌──────────┐          ┌─────────────┐  ┌─────────────┐
+│serve<T>  │  ------> │serve_pizza()|  │serve_pasta()│
+│{...}     │          │{...}        |  │{...}        │
+└──────────┘          └─────────────┘  └─────────────┘
+
+Faster to execute but takes more space - like having separate cooking
+stations for each dish type!
+Compile-time vs Runtime Polymorphism in Rust: Tradeoffs & Usage Guide
+
+Compile-time (Generics <T>):
+✅ Pros:
+- Zero runtime overhead - all code is specialized at compile time
+- Better optimization opportunities for the compiler
+- Type checking at compile time catches errors early
+- No runtime cost for virtual dispatch
+
+❌ Cons:
+- Larger binary size due to monomorphization (code duplication)
+- Longer compile times
+- All possible types must be known at compile time
+- Can't use dynamic loading/plugins
+
+Runtime (dyn Trait):
+✅ Pros:
+- Smaller binary size - no code duplication
+- Faster compilation
+- Supports dynamic loading/plugins
+- Can handle types not known at compile time
+
+❌ Cons:
+- Small runtime overhead from vtable lookups
+- Less optimization potential
+- Heap allocation required for trait objects
+- Can't use associated types or const generics
+
+When to Use What:
+
+Use Compile-time (<T>) when:
+- Performance is critical
+- Types are known at compile time
+- Working with embedded systems/no_std
+- Using const generics or associated types
+
+Example:
+```rust
+fn process_data<T: Display>(data: T) { ... }
+```
 //
-// ELI15: vtable & monomorphization explained with a restaurant analogy:
+// Use Runtime (dyn) when:
+// - Need dynamic dispatch/plugins
+// - Binary size is a concern
+// - Types determined at runtime
+// - Building public APIs
 //
-// vtable (&dyn Trait):
-// Imagine a restaurant with a menu (trait) and different dishes (implementations).
-// When a customer (your code) orders "today's special" (trait object):
+// Example:
+```rust
+fn process_data(data: Box<dyn Display>) { ... }
+```
 //
-// Menu (Trait)           vtable                  Implementation
-// ┌──────────┐     ┌─────────────────┐     ┌─────────────────┐
-// │ Order    │ --> │ Pizza::make()   │ --> │ Pizza           │
-// │ Make     │     │ Pizza::serve()  │     │ - make()        │
-// │ Serve    │     └─────────────────┘     │ - serve()       │
-// └──────────┘                             └─────────────────┘
-//
-// The waiter (vtable) looks up how to make/serve that specific dish at runtime.
-//
-// monomorphization (generics <T>):
-// Instead of a lookup, the kitchen (compiler) creates separate specialized
-// recipes for each dish type at compile time:
-//
-// Before:                After Monomorphization:
-// ┌──────────┐          ┌─────────────┐  ┌─────────────┐
-// │serve<T>  │  ------> │serve_pizza()|  │serve_pasta()│
-// │{...}     │          │{...}        |  │{...}        │
-// └──────────┘          └─────────────┘  └─────────────┘
-//
-// Faster to execute but takes more space - like having separate cooking
-// stations for each dish type!
+// Real-world Example:
+// - Iterator combinators use generics for zero-cost abstractions
+// - GUI frameworks often use dyn Trait for plugin systems
