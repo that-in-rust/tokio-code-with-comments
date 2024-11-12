@@ -256,7 +256,36 @@ The `.await` tells the task to **pause** here until `deliver_letter()` completes
 ```
 
 🔍 **How It Really Works:**
-- **tokio::spawn:** Launches an asynchronous task on Tokio's runtime.
+- **tokio::spawn:** Launches an asynchronous task on Tokio's runtime. Unlike Rust's standard runtime which just executes your code sequentially, Tokio's runtime is a specialized async executor that:
+  - Manages a thread pool for running async tasks
+  - Handles I/O event polling efficiently
+  - Schedules tasks across threads
+  - Provides async-aware primitives like channels and mutexes
+
+Q: Why was Rust's runtime decided to be synchronous by default? Which languages have async runtimes by default?
+
+A: Rust's standard runtime is synchronous by default because:
+- Follows "pay for what you use" philosophy - async adds overhead
+- Simpler mental model for most use cases
+- Better predictability and control over resource usage
+- Easier debugging and profiling
+
+Languages with async runtimes by default:
+- Node.js (V8 engine)
+- Python 3.7+ (asyncio)
+- JavaScript (browser runtime)
+- Erlang/Elixir (BEAM VM)
+
+Q: How is Tokio different from Rayon? Do Tokio programs need Rayon for parallel processing?
+
+A: Key differences:
+- Tokio: Async I/O, event-driven concurrency
+- Rayon: Data parallelism, CPU-bound tasks
+
+Tokio programs don't need Rayon unless you need CPU-intensive parallel computations. Use:
+- Tokio for I/O (network, files)
+- Rayon for CPU work (data processing, math)
+- Both can be used together when needed
 - **async { ... }:** Defines an asynchronous block of code.
 - **.await:** Pauses the async block until the awaited future completes, without blocking the main thread.
 
@@ -331,3 +360,104 @@ your way up to the more complex spells (advanced async patterns)!
 Pro-tip: When you're stuck, think "What Would Hermione Do?" - She'd probably 
 read the documentation (like studying in the library) and experiment safely 
 (like in the Room of Requirement)!
+
+
+=== Cody comments v1.0 ====
+
+Tokio Codebase Visual Structure:
+
+                                   [tokio]
+                                      |
+           +------------+-------------+-------------+------------+
+           |           |             |             |            |
+        Runtime     Network        Sync           I/O         Time
+     [scheduler]  [TCP/UDP/Unix] [channels]  [async I/O]  [timers]
+           |           |             |             |            |
+     +-----+-----+    +++       +----+----+   +---+---+    +--+--+
+     |     |     |    |||       |    |    |   |   |   |    |     |
+   Multi  Single Queue Streams  MPSc Watch  File Net  Process Timer
+  Thread  Thread                Queue Notify
+   Pool    Loop
+
+Key Features Tree:
+  tokio
+  ├── runtime/
+  │   ├── scheduler/
+  │   │   ├── multi_thread/
+  │   │   └── current_thread/
+  │   └── task/
+  ├── sync/
+  │   ├── broadcast
+  │   ├── mpsc
+  │   ├── oneshot
+  │   └── watch
+  ├── net/
+  │   ├── tcp
+  │   ├── udp
+  │   └── unix
+  └── time/
+      ├── interval
+      └── timeout
+
+Version Evolution (from changelog):
+1.21.x → Added WASM support
+1.20.x → Added track_caller
+1.19.x → Enhanced notification system
+1.18.x → Runtime improvements
+1.17.x → Updated to mio 0.8
+1.16.x → Core stability improvements
+
+Core Components Interaction:
+   [Runtime] <---> [Task Scheduler]
+       ↑               ↑
+       |               |
+[I/O Driver] <---> [Event Queue]
+       ↑               ↑
+       |               |
+   [Network] <---> [Sync Primitives]
+
+=== Async Programming ELI 15 ===
+
+
+=== Async Programming Explained (ELI15) ===
+
+Imagine you're making pizza.  Normally, you'd:
+
+1. Put the pizza in the oven.
+2. **Wait** for it to bake.
+3. Take it out and add toppings.
+
+This is like regular (synchronous) programming.  You have to wait for each step to finish before starting the next.
+
+Now, imagine you have a magical oven that tells you when the pizza is ready.  You can:
+
+1. Put the pizza in the magic oven.
+2. Go do your homework while it bakes.
+3. When the oven dings, add toppings.
+
+This is like asynchronous programming! You don't waste time waiting.  You do other things while the pizza bakes.
+
+**Simple Example (Making a sandwich):**
+
+```rust
+// Synchronous (normal) way:
+fn make_sandwich() {
+    println!("Making sandwich...");
+    // Simulate making the sandwich (takes time)
+    std::thread::sleep(std::time::Duration::from_secs(2)); 
+    println!("Sandwich is ready!");
+}
+
+// Asynchronous (Tokio) way:
+async fn make_sandwich_async() {
+    println!("Making sandwich asynchronously...");
+    // Simulate making the sandwich (takes time, but doesn't block)
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await; // The magic!
+    println!("Async sandwich is ready!");
+}
+
+#[tokio::main]
+async fn main() {
+    make_sandwich(); // Blocks for 2 seconds
+    make_sandwich_async().await; // Doesn't block, allows other tasks to run concurrently
+}

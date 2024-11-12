@@ -1,0 +1,169 @@
+// Key differences between Generics, Functions and Traits in Rust:
+//
+// ┌───────────┬────────────────────────┬──────────────────────────────────────┬───────────────────────────┐
+// │ Feature   │ Purpose                │ Example                              │ Key Properties            │
+// ├───────────┼────────────────────────┼──────────────────────────────────────┼───────────────────────────┤
+// │ Functions │ Standalone code blocks │ fn process(x: i32) -> i32 {          │ - Direct implementation   │
+// │           │ with inputs/outputs    │     x + 1                            │ - Fixed types             │
+// │           │                        │ }                                    │ - No polymorphism         │
+// ├───────────┼────────────────────────┼──────────────────────────────────────┼───────────────────────────┤
+// │ Generics  │ Type-parameterized     │ fn process<T>(x: T) -> T             │ - Compile-time resolved   │
+// │           │ code reuse             │     where T: Add<Output=T> {         │ - Zero runtime cost       │
+// │           │                        │     x + x                            │ - Type constraints        │
+// │           │                        │ }                                    │                           │
+// ├───────────┼────────────────────────┼──────────────────────────────────────┼───────────────────────────┤
+// │ Traits    │ Shared behavior        │ trait Processor {                    │ - Runtime polymorphism    │
+// │           │ interfaces             │     fn process(&self) -> i32;        │ - Dynamic dispatch        │
+// │           │                        │ }                                    │ - Code reuse via impl     │
+// └───────────┴────────────────────────┴──────────────────────────────────────┴───────────────────────────┘
+//
+// This table breaks down three core concepts in Rust's type system. Functions are your basic building blocks - 
+// they just do one specific thing with specific types. Generics let you write code that works with multiple 
+// types, like a function that can add any two numbers together. The compiler figures out the actual types at 
+// compile time. Traits are like contracts that types can implement - they define shared behavior that 
+// different types can provide their own versions of, like how different types can all implement Display to 
+// show themselves as text. The cool thing is traits give you runtime flexibility through dynamic dispatch, 
+// while generics give you compile-time optimization through monomorphization.
+
+// Here are concrete examples:
+//
+// Note: While it's tempting to think of traits as "clusters of types with common behavior",
+// that's not quite accurate. Traits define behavior (interface) that types can implement,
+// but they don't group or cluster the types themselves. A type can implement many traits,
+// and traits don't know about which types implement them. Think of traits more like 
+// contracts or interfaces that types can choose to fulfill.
+
+
+```rust
+// Regular function - fixed types
+fn add_ints(x: i32, y: i32) -> i32 {
+    x + y
+}
+
+// Generic function - works with any type T that implements Add
+fn add_generic<T: std::ops::Add<Output = T>>(x: T, y: T) -> T {
+    x + y
+}
+
+// This generic function demonstrates several key concepts:
+//
+// 1. Type Parameter <T>: Makes the function work with any type T that meets the constraints
+//
+// 2. Trait Bound (std::ops::Add<Output = T>): 
+//    - Requires type T to implement the Add trait
+//    - Output = T means adding two Ts must produce another T
+//    - Examples: numbers (i32 + i32 = i32), strings (String + String = String)
+//
+// 3. Parameters (x: T, y: T):
+//    - Both must be the same type T
+//    - Compiler enforces type safety
+//
+// At compile time, Rust will create specialized versions of this function
+// for each concrete type used (called monomorphization)
+
+// Trait - defines shared behavior
+trait Printable {
+    fn print(&self);
+}
+// In this example, 2 types implement this trait:
+// 1. Point struct - implements print() to show x,y coordinates 
+// 2. Circle struct - implements print() to show radius
+//
+// The actual function definitions appear in impl blocks after each struct,
+// using the syntax:
+//   impl Printable for StructName { 
+//     fn print(&self) { ... }
+//   }
+
+// Different types can implement the trait
+struct Point {
+    x: i32,
+    y: i32,
+}
+
+impl Printable for Point {
+    fn print(&self) {
+        println!("Point({}, {})", self.x, self.y);
+    }
+}
+
+struct Circle {
+    radius: f64,
+}
+
+impl Printable for Circle {
+    fn print(&self) {
+        println!("Circle(r={})", self.radius);
+    }
+}
+
+// Function that uses trait object for runtime polymorphism
+fn print_shape(shape: &dyn Printable) {
+    shape.print();
+}
+
+// Q: What is &dyn?
+// A: &dyn is Rust's syntax for trait objects - it means "reference to any type that implements this trait"
+// - & indicates it's borrowed (non-owning reference)
+// - dyn indicates dynamic dispatch will be used
+// - Size is known at runtime (2 pointers: data + vtable)
+// - Enables runtime polymorphism
+// Q2: Runtime vs Compile-time Polymorphism Across Languages
+// ┌────────────┬────────────────────┬───────────────────────┐
+// │ Language   │ Runtime (Dynamic)  │ Compile-time (Static) │
+// ├────────────┼────────────────────┼───────────────────────┤
+// │ Rust       │ &dyn Trait         │ Generic <T>           │
+// │            │ (vtable lookup)    │ (monomorphization)    │
+// ├────────────┼────────────────────┼───────────────────────┤
+// │ Java       │ Interface          │ Generics <T>           │
+// │           │ (vtable lookup)   │ (type erasure)        │
+// ├────────────┼────────────────────┼───────────────────────┤
+// │ Go         │ Interface         │ No generics pre-1.18   │
+// │           │ (interface table)  │ (type parameters now) │
+// ├────────────┼────────────────────┼───────────────────────┤
+// │ Python     │ Duck typing       │ Type hints (optional) │
+// │           │ (method lookup)    │ (runtime checking)    │
+// └────────────┴────────────────────┴───────────────────────┘
+
+// ELI15: Think of polymorphism like a universal remote control in context of types. You have two ways to make it work:
+
+// Runtime (Dynamic) is like a learning remote - when you press a button, it figures out what to do 
+// by checking a little instruction manual inside (the vtable). It's flexible but slightly slower
+// since it has to look up what to do each time.
+
+// Compile-time (Static) is like having separate remotes for each device. The compiler makes a 
+// specialized version for each type (in Rust, this is called monomorphization). It's faster because
+// there's no lookup needed - it knows exactly what to do. But it makes your program bigger since
+// you need separate code for each type.
+
+// Rust lets you choose which approach you want:
+// - Use &dyn Trait when you need flexibility and don't mind the small runtime cost
+// - Use generics <T> when you want maximum speed and don't mind larger binary size
+//
+// ELI15: vtable & monomorphization explained with a restaurant analogy:
+//
+// vtable (&dyn Trait):
+// Imagine a restaurant with a menu (trait) and different dishes (implementations).
+// When a customer (your code) orders "today's special" (trait object):
+//
+// Menu (Trait)           vtable                  Implementation
+// ┌──────────┐     ┌─────────────────┐     ┌─────────────────┐
+// │ Order    │ --> │ Pizza::make()   │ --> │ Pizza           │
+// │ Make     │     │ Pizza::serve()  │     │ - make()        │
+// │ Serve    │     └─────────────────┘     │ - serve()       │
+// └──────────┘                             └─────────────────┘
+//
+// The waiter (vtable) looks up how to make/serve that specific dish at runtime.
+//
+// monomorphization (generics <T>):
+// Instead of a lookup, the kitchen (compiler) creates separate specialized
+// recipes for each dish type at compile time:
+//
+// Before:                After Monomorphization:
+// ┌──────────┐          ┌─────────────┐  ┌─────────────┐
+// │serve<T>  │  ------> │serve_pizza()|  │serve_pasta()│
+// │{...}     │          │{...}        |  │{...}        │
+// └──────────┘          └─────────────┘  └─────────────┘
+//
+// Faster to execute but takes more space - like having separate cooking
+// stations for each dish type!

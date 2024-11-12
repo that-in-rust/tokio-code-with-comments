@@ -1,0 +1,41 @@
+// ... existing content ...
+
+// Suggested order for mastering Tokio from a newbie stage:
+1. hello_world.rs
+2. echo.rs
+3. connect.rs
+4. echo-udp.rs
+5. udp-client.rs
+6. udp-codec.rs
+7. print_each_packet.rs
+8. chat.rs
+9. tinydb.rs
+10. tinyhttp.rs
+11. proxy.rs
+12. named-pipe.rs
+13. named-pipe-ready.rs
+14. named-pipe-multi-client.rs
+15. custom-executor.rs
+16. custom-executor-tokio-context.rs
+17. dump.rs
+
+// Reasoning for the order:
+1. **hello_world.rs**: Start with a simple TCP client example to introduce basic concepts.
+2. **echo.rs**: Learn about creating a basic TCP echo server to handle multiple connections.
+3. **connect.rs**: Understand connecting stdin/stdout to TCP/UDP streams.
+4. **echo-udp.rs**: Explore a simple UDP echo server to understand connectionless protocols.
+5. **udp-client.rs**: Implement a UDP client to reinforce UDP concepts.
+6. **udp-codec.rs**: Use `BytesCodec` for custom protocol over UDP.
+7. **print_each_packet.rs**: Process each packet received over TCP.
+8. **chat.rs**: Build a chat server to learn about shared state and message broadcasting.
+9. **tinydb.rs**: Implement a tiny database to manage shared state among clients.
+10. **tinyhttp.rs**: Handle HTTP requests/responses using transports.
+11. **proxy.rs**: Develop a proxy to forward data between client and server.
+12. **named-pipe.rs**: Work with named pipes on Windows for inter-process communication.
+13. **named-pipe-ready.rs**: Use readiness-based I/O with named pipes.
+14. **named-pipe-multi-client.rs**: Handle multiple clients with named pipes.
+15. **custom-executor.rs**: Learn to use the Tokio runtime with a custom executor.
+16. **custom-executor-tokio-context.rs**: Extend the custom executor with Tokio context.
+17. **dump.rs**: Explore task dumping functionality for debugging.
+
+// ... existing content ...
